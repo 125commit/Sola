@@ -10,7 +10,7 @@ import {
   getRecentMonthSummaries,
 } from "@/lib/analytics";
 import { getCategoryLabel } from "@/lib/categories";
-import { db } from "@/lib/db";
+import { queryActiveTransactions } from "@/lib/db";
 import { CategoryPieChart, MonthlyTrendChart } from "@/components/expense-charts";
 
 /**
@@ -38,7 +38,7 @@ function formatChangeRate(rate: number | null): string {
  * 【何时调用】用户打开消费分析页或切换目标月份时。
  */
 export function AnalysisDashboard() {
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []);
+  const transactions = useLiveQuery(() => queryActiveTransactions(), []);
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey());
   const comparison = useMemo(
     () => compareWithPreviousMonth(transactions ?? [], selectedMonth),

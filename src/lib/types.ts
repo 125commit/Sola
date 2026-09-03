@@ -7,6 +7,8 @@ export type TransactionSource = "manual" | "screenshot";
  */
 export interface Transaction {
   id?: number;
+  /** 跨设备稳定编号；云同步和本地 IndexedDB 用它对齐同一笔账。 */
+  syncId: string;
   type: TransactionType;
   amountCents: number;
   category: string;
@@ -17,10 +19,34 @@ export interface Transaction {
   imageHash?: string;
   createdAt: string;
   updatedAt: string;
+  /** 有值表示已删除但仍需同步到其他设备，界面不展示。 */
+  deletedAt?: string;
 }
 
 /** 用户表单提交前的数据形态，时间采用本地 datetime-local 字符串。 */
-export type TransactionDraft = Omit<Transaction, "id" | "createdAt" | "updatedAt">;
+export type TransactionDraft = Omit<
+  Transaction,
+  "id" | "syncId" | "createdAt" | "updatedAt" | "deletedAt"
+>;
+
+/**
+ * 【做什么】描述一笔可在设备间对齐的账目快照，包含删除标记。
+ * 【何时使用】登录后把本地 IndexedDB 与云端 Postgres 互相同步时。
+ */
+export interface SyncRecord {
+  syncId: string;
+  type: TransactionType;
+  amountCents: number;
+  category: string;
+  merchant: string;
+  occurredAt: string;
+  note: string;
+  source: TransactionSource;
+  imageHash?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
 
 /** 单个类别在某月的支出和占比。 */
 export interface CategorySpending {

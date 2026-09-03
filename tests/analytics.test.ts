@@ -19,6 +19,7 @@ function makeTransaction(
 ): Transaction {
   return {
     id: Math.floor(Math.random() * 100_000),
+    syncId: "sync-test",
     type: "expense",
     amountCents,
     category,

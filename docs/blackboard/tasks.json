@@ -1,5 +1,5 @@
 {
-  "currentTask": "expense-only",
+  "currentTask": "sola-brand-account",
   "tasks": [
     {
       "id": "tally-mvp",
@@ -94,6 +94,89 @@
         "src/lib/analytics.ts",
         "src/lib/db.ts",
         "tests/analytics.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "auth-sync-pwa",
+      "title": "账号同步与可安装 PWA",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "README.md",
+        ".env.example",
+        "package.json",
+        "package-lock.json",
+        "next.config.ts",
+        "scripts/generate-pwa-icons.mjs",
+        "public/sw.js",
+        "public/icon-192.png",
+        "public/icon-512.png",
+        "public/apple-touch-icon.png",
+        "src/app/globals.css",
+        "src/app/layout.tsx",
+        "src/app/manifest.ts",
+        "src/app/icon.tsx",
+        "src/app/apple-icon.tsx",
+        "src/app/account/page.tsx",
+        "src/app/api/auth/register/route.ts",
+        "src/app/api/auth/login/route.ts",
+        "src/app/api/auth/logout/route.ts",
+        "src/app/api/auth/me/route.ts",
+        "src/app/api/sync/route.ts",
+        "src/components/app-nav.tsx",
+        "src/components/pwa-registrar.tsx",
+        "src/components/pwa-installer.tsx",
+        "src/components/auth-provider.tsx",
+        "src/components/account-panel.tsx",
+        "src/components/dashboard.tsx",
+        "src/components/analysis-dashboard.tsx",
+        "src/lib/types.ts",
+        "src/lib/db.ts",
+        "src/lib/sync-id.ts",
+        "src/lib/sync-merge.ts",
+        "src/lib/sync-record.ts",
+        "src/lib/auth.ts",
+        "src/lib/auth-schema.ts",
+        "src/lib/cloud-db.ts",
+        "src/lib/pwa-icon.tsx",
+        "tests/analytics.test.ts",
+        "tests/sync-merge.test.ts",
+        "tests/auth-schema.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "sola-brand-account",
+      "title": "品牌改为 Sola，图标进入账号",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "README.md",
+        "start.bat",
+        "start.ps1",
+        "public/icon.svg",
+        "src/app/globals.css",
+        "src/app/layout.tsx",
+        "src/app/manifest.ts",
+        "src/app/account/page.tsx",
+        "src/components/app-nav.tsx",
+        "src/components/account-panel.tsx",
+        "src/components/pwa-installer.tsx"
       ],
       "forbidden": [
         "../",

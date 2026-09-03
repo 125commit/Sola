@@ -80,6 +80,7 @@ a {
 }
 
 .brand-mark {
+  position: relative;
   display: grid;
   width: 35px;
   height: 35px;
@@ -87,6 +88,28 @@ a {
   border-radius: 11px;
   background: var(--forest);
   place-items: center;
+}
+
+/* 已登录时用金点提示：点图标可以进账号并退出，避免看起来仍像装饰 Logo。 */
+.brand-mark.is-signed-in::after {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--gold);
+  content: "";
+}
+
+.brand-account-label {
+  display: none;
+}
+
+.brand.is-active,
+.brand:hover {
+  color: var(--ink);
 }
 
 .nav-links {
@@ -677,9 +700,98 @@ h2 {
   background: #e3f2ea;
 }
 
+.sync-notice {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--forest);
+  background: rgb(40 120 87 / 10%);
+}
+
 .error-notice {
   color: #963b34;
   background: #f8e6e2;
+}
+
+.pwa-banner {
+  position: fixed;
+  z-index: 40;
+  right: 20px;
+  bottom: 24px;
+  display: flex;
+  width: min(380px, calc(100% - 40px));
+  padding: 18px;
+  border: 1px solid rgb(20 33 29 / 9%);
+  border-radius: 20px;
+  background: rgb(255 253 248 / 96%);
+  box-shadow: var(--shadow);
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pwa-banner p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.pwa-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-card h2 {
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.account-actions {
+  display: flex;
+  margin: 18px 0 14px;
+  gap: 10px;
+}
+
+.auth-tabs {
+  display: flex;
+  margin-bottom: 22px;
+  gap: 6px;
+}
+
+.auth-tabs button {
+  padding: 8px 14px;
+  color: var(--muted);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.auth-tabs button.is-active {
+  color: var(--ink);
+  background: rgb(24 63 51 / 9%);
+}
+
+.sync-status {
+  margin: 0;
+  font-weight: 700;
+}
+
+.sync-status.is-error {
+  color: var(--red);
+}
+
+.sync-status.is-synced,
+.sync-status.is-syncing {
+  color: var(--green);
+}
+
+.auth-form .primary-button {
+  width: 100%;
 }
 
 /* 分析页将总额、结构、趋势和可解释提示分层呈现。 */
@@ -910,17 +1022,39 @@ h2 {
   }
 
   .brand {
+    display: flex;
+    min-width: 64px;
+    padding: 6px 8px;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.68rem;
+  }
+
+  /* CHANGED: 手机底栏原先藏掉品牌，导致账号入口消失；现在保留 S 图标作为登录/退出入口。 */
+  .brand-name {
     display: none;
   }
 
+  .brand-account-label {
+    display: block;
+    color: var(--muted);
+    font-weight: 650;
+  }
+
+  .brand.is-active .brand-account-label {
+    color: var(--ink);
+  }
+
   .nav-links {
-    width: 100%;
+    flex: 1;
+    width: auto;
     justify-content: space-around;
   }
 
   .nav-link {
-    min-width: 82px;
-    padding: 6px 10px;
+    min-width: 64px;
+    padding: 6px 8px;
     flex-direction: column;
     gap: 2px;
     border-radius: 12px;
@@ -1029,6 +1163,22 @@ h2 {
   }
 
   .month-picker {
+    width: 100%;
+  }
+
+  .pwa-banner {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .account-actions {
+    flex-direction: column;
+  }
+
+  .account-actions .primary-button,
+  .account-actions .secondary-button {
     width: 100%;
   }
 }

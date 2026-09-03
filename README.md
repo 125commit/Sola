@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-打开网址。账目保存在当前浏览器的 IndexedDB 中。
+打开 `http://localhost:3000`。账目保存在当前浏览器的 IndexedDB 中。
 
 ## 开启截图识别
 

@@ -2,7 +2,30 @@
 
 import Dexie, { type EntityTable } from "dexie";
 
-import type { Transaction, TransactionDraft } from "@/lib/types";
+import { createSyncId } from "@/lib/sync-id";
+import { transactionToSyncRecord } from "@/lib/sync-record";
+import type { SyncRecord, Transaction, TransactionDraft } from "@/lib/types";
+
+type LedgerListener = () => void;
+
+const ledgerListeners = new Set<LedgerListener>();
+
+/**
+ * 【做什么】让界面在账本变更后触发云同步，而不让 db 模块直接依赖登录状态。
+ * 【何时调用】AuthProvider 挂载时订阅；卸载时退订。
+ */
+export function subscribeLedgerChanges(listener: LedgerListener): () => void {
+  ledgerListeners.add(listener);
+  return () => {
+    ledgerListeners.delete(listener);
+  };
+}
+
+function notifyLedgerChanged() {
+  for (const listener of ledgerListeners) {
+    listener();
+  }
+}
 
 /**
  * 【做什么】保存用户设备上的已确认账目。
@@ -16,6 +39,21 @@ class TallyDatabase extends Dexie {
     this.version(1).stores({
       transactions: "++id, occurredAt, type, category, imageHash, createdAt",
     });
+    // CHANGED: v2 增加 syncId / deletedAt，使同一笔账能在电脑和手机对齐，删除也能同步。
+    this.version(2)
+      .stores({
+        transactions: "++id, syncId, occurredAt, type, category, imageHash, createdAt, updatedAt, deletedAt",
+      })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table("transactions")
+          .toCollection()
+          .modify((row: Transaction) => {
+            if (!row.syncId) {
+              row.syncId = createSyncId();
+            }
+          });
+      });
   }
 }
 
@@ -27,6 +65,22 @@ export class DuplicateImageError extends Error {
     super("这张截图已经记过账了");
     this.name = "DuplicateImageError";
   }
+}
+
+function isActive(transaction: Transaction): boolean {
+  return !transaction.deletedAt;
+}
+
+/**
+ * 【做什么】读取尚未删除的支出，供总览和分析的实时订阅使用。
+ * 【何时调用】Dashboard / AnalysisDashboard 的 useLiveQuery 工厂里。
+ */
+export function queryActiveTransactions(): Promise<Transaction[]> {
+  return db.transactions
+    .orderBy("occurredAt")
+    .reverse()
+    .filter((item) => isActive(item))
+    .toArray();
 }
 
 /**
@@ -44,7 +98,11 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
   return db.transaction("rw", db.transactions, async () => {
     // WARN: 同一截图重复提交时拒绝写入，避免月度统计被悄悄放大。
     if (draft.imageHash) {
-      const existing = await db.transactions.where("imageHash").equals(draft.imageHash).first();
+      const existing = await db.transactions
+        .where("imageHash")
+        .equals(draft.imageHash)
+        .and((item) => isActive(item))
+        .first();
       if (existing) {
         throw new DuplicateImageError();
       }
@@ -53,6 +111,7 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
     const now = new Date().toISOString();
     const id = await db.transactions.add({
       ...draft,
+      syncId: createSyncId(),
       createdAt: now,
       updatedAt: now,
     });
@@ -61,6 +120,7 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
     if (id === undefined) {
       throw new Error("本地账本未能生成记录编号");
     }
+    notifyLedgerChanged();
     return id;
   });
 }
@@ -89,10 +149,15 @@ export async function addScreenshotTransactions(
   }
 
   return db.transaction("rw", db.transactions, async () => {
-    const exactMatch = await db.transactions.where("imageHash").equals(imageHash).first();
+    const exactMatch = await db.transactions
+      .where("imageHash")
+      .equals(imageHash)
+      .and((item) => isActive(item))
+      .first();
     const batchMatch = await db.transactions
       .where("imageHash")
       .startsWith(`${imageHash}:`)
+      .and((item) => isActive(item))
       .first();
 
     // WARN: 整张截图只允许确认一次；批次后缀用于让同图中的多笔流水共存。
@@ -105,6 +170,7 @@ export async function addScreenshotTransactions(
     for (const [index, draft] of drafts.entries()) {
       const id = await db.transactions.add({
         ...draft,
+        syncId: createSyncId(),
         imageHash: `${imageHash}:${index}`,
         createdAt: now,
         updatedAt: now,
@@ -114,6 +180,7 @@ export async function addScreenshotTransactions(
       }
       ids.push(id);
     }
+    notifyLedgerChanged();
     return ids;
   });
 }
@@ -139,14 +206,25 @@ export async function updateTransaction(id: number, draft: TransactionDraft): Pr
   if (updated === 0) {
     throw new Error("这笔账已不存在，请刷新后重试");
   }
+  notifyLedgerChanged();
 }
 
 /**
- * 【做什么】永久删除一笔本地流水。
+ * 【做什么】把一笔支出标为删除，保留编号以便同步到其他设备。
  * 【何时调用】用户在流水编辑界面二次确认删除后。
  */
 export async function deleteTransaction(id: number): Promise<void> {
-  await db.transactions.delete(id);
+  const existing = await db.transactions.get(id);
+  if (!existing) {
+    return;
+  }
+
+  // CHANGED: 原先直接从 IndexedDB 抹掉 → 改为写入 deletedAt，否则其他设备无法知道要删哪一笔。
+  await db.transactions.update(id, {
+    deletedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  notifyLedgerChanged();
 }
 
 /**
@@ -154,9 +232,72 @@ export async function deleteTransaction(id: number): Promise<void> {
  * 【何时调用】识别完成后、用户填写表单前，用于尽早展示重复提醒。
  */
 export async function hasImageHash(imageHash: string): Promise<boolean> {
-  const exactCount = await db.transactions.where("imageHash").equals(imageHash).count();
-  if (exactCount > 0) {
+  const exact = await db.transactions
+    .where("imageHash")
+    .equals(imageHash)
+    .and((item) => isActive(item))
+    .first();
+  if (exact) {
     return true;
   }
-  return (await db.transactions.where("imageHash").startsWith(`${imageHash}:`).count()) > 0;
+  const batched = await db.transactions
+    .where("imageHash")
+    .startsWith(`${imageHash}:`)
+    .and((item) => isActive(item))
+    .first();
+  return Boolean(batched);
+}
+
+/**
+ * 【做什么】导出本地全部账目快照，包含墓碑，供上传到云端。
+ * 【何时调用】登录后或账本变更后执行同步推送时。
+ */
+export async function listSyncRecords(): Promise<SyncRecord[]> {
+  const rows = await db.transactions.toArray();
+  return rows.map(transactionToSyncRecord);
+}
+
+/**
+ * 【做什么】用云端返回的账本覆盖本地对应 syncId 的记录。
+ * 【何时调用】同步接口成功返回完整快照后。
+ */
+export async function applyRemoteRecords(records: SyncRecord[]): Promise<void> {
+  await db.transaction("rw", db.transactions, async () => {
+    const existing = await db.transactions.toArray();
+    const bySyncId = new Map(
+      existing.filter((row) => row.syncId).map((row) => [row.syncId, row]),
+    );
+
+    for (const record of records) {
+      const local = bySyncId.get(record.syncId);
+      const fields: Omit<Transaction, "id"> = {
+        syncId: record.syncId,
+        type: record.type,
+        amountCents: record.amountCents,
+        category: record.category,
+        merchant: record.merchant,
+        occurredAt: record.occurredAt,
+        note: record.note,
+        source: record.source,
+        imageHash: record.imageHash,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        deletedAt: record.deletedAt ?? undefined,
+      };
+
+      if (local?.id !== undefined) {
+        await db.transactions.update(local.id, fields);
+      } else {
+        await db.transactions.add(fields);
+      }
+    }
+  });
+}
+
+/**
+ * 【做什么】清空本机账本，避免把上一个账号的支出上传到新账号。
+ * 【何时调用】同一浏览器改用另一个邮箱登录时。
+ */
+export async function clearLocalLedger(): Promise<void> {
+  await db.transactions.clear();
 }

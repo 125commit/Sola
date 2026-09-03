@@ -6,8 +6,9 @@ import { useState } from "react";
 
 import { formatCents, getMonthKey, summarizeMonth } from "@/lib/analytics";
 import { getCategoryLabel } from "@/lib/categories";
-import { db, deleteTransaction } from "@/lib/db";
+import { deleteTransaction, queryActiveTransactions } from "@/lib/db";
 import type { Transaction } from "@/lib/types";
+import { useAuth } from "@/components/auth-provider";
 import { TransactionForm } from "@/components/transaction-form";
 
 /** 日期展示器保留月日和时间，减少流水列表的视觉噪音。 */
@@ -23,10 +24,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
  * 【何时调用】用户进入应用首页时。
  */
 export function Dashboard() {
-  const transactions = useLiveQuery(
-    () => db.transactions.orderBy("occurredAt").reverse().toArray(),
-    [],
-  );
+  const { ready, user } = useAuth();
+  const transactions = useLiveQuery(() => queryActiveTransactions(), []);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const now = new Date();
   const monthKey = getMonthKey(now);
@@ -75,6 +74,16 @@ export function Dashboard() {
           + 记一笔
         </Link>
       </header>
+
+      {/* CHANGED: 未登录时明确提示数据还在本机，避免用户以为换手机会自动带上账本。 */}
+      {ready && !user && (
+        <p className="notice sync-notice">
+          当前账本只存在这台设备。
+          <Link className="text-link" href="/account">
+            登录账号后可在电脑和手机同步
+          </Link>
+        </p>
+      )}
 
       <section className="summary-grid expense-only-grid" aria-label="本月支出摘要">
         <article className="summary-card featured">

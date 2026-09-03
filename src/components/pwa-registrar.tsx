@@ -12,8 +12,10 @@ export function PwaRegistrar() {
       return;
     }
 
-    // NOTE: 注册失败不阻断账本使用，联网页面和 IndexedDB 仍然独立可用。
-    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    // NOTE: updateViaCache 关掉 HTTP 缓存，避免 Vercel 把旧的 sw.js 一直留给已安装用户。
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .catch(() => undefined);
   }, []);
 
   return null;
