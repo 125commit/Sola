@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState, type ReactNode } from "react";
 
 import { yuanToCents } from "@/lib/analytics";
 import { CATEGORIES } from "@/lib/categories";
@@ -56,25 +56,40 @@ function rememberJustSaved(count: number) {
 }
 
 /**
- * 【做什么】铺满按钮的透明选图控件，让手指直接点到系统 file input。
- * 【何时调用】「选择截图」和预览「换一张」的热区里。
- * 【原因】Android Chrome 对 1px/不可见 input 调用 click()，或把 input 设为 disabled 再启用后，第二次经常打不开相册；看起来像点了，其实选图器没起来。
+ * 【做什么】用 label 包住铺满热区的 file input，让手指直接点到系统选图控件。
+ * 【何时调用】「选择截图」和「换一张截图」。
+ * 【原因】Android Chrome 上：opacity:0 可能不接收点击；font-size:0 时原生“选择文件”按钮面积为 0；
+ * disabled / 程序 click() 会让第二次彻底失效。所以用看得见尺寸的透明控件，且不用 disabled。
  */
-function OverlayFileInput({
+function ScreenshotPicker({
+  pickerKey,
+  busy,
+  label,
+  className,
+  children,
   onSelect,
 }: {
+  pickerKey: number;
+  busy: boolean;
+  label: string;
+  className?: string;
+  children?: ReactNode;
   onSelect: (event: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <input
-      className="upload-file-overlay"
-      type="file"
-      accept="image/*"
-      onClick={(event) => {
-        event.currentTarget.value = "";
-      }}
-      onChange={onSelect}
-    />
+    <label className={`upload-hit ${busy ? "is-busy" : ""} ${className ?? ""}`}>
+      {children}
+      <span className="upload-button-face">{label}</span>
+      {busy ? null : (
+        <input
+          key={pickerKey}
+          className="upload-file-overlay"
+          type="file"
+          accept="image/*"
+          onChange={onSelect}
+        />
+      )}
+    </label>
   );
 }
 
@@ -115,7 +130,7 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pickerKey, setPickerKey] = useState(0);
-  const pickerBusy = isRecognizing || !authReady || needsLoginForRecognition;
+  const canPickScreenshot = authReady && !needsLoginForRecognition && !isRecognizing;
 
   // WARN: 预览只使用临时 Blob URL；切换图片或离开页面时立即释放内存。
   useEffect(
@@ -399,29 +414,40 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
               <Link href="/account">去登录</Link>
             </p>
           )}
-          <div className={`upload-hit ${pickerBusy ? "is-busy" : ""}`}>
-            <span className="upload-button-face">
-              {isRecognizing ? "正在识别…" : needsLoginForRecognition ? "请先登录" : "选择截图"}
-            </span>
-            {!pickerBusy && (
-              <OverlayFileInput
-                key={`main-${pickerKey}`}
-                onSelect={(event) => void handleImageSelection(event)}
-              />
-            )}
-          </div>
-          {previewUrl && (
-            <div className={`upload-hit receipt-preview-hit ${pickerBusy ? "is-busy" : ""}`}>
-              {/* Blob 预览不能走 next/image；预览热区同样盖透明 input，避免点图没反应。 */}
+          {needsLoginForRecognition ? (
+            <Link className="upload-hit" href="/account">
+              <span className="upload-button-face">请先登录后再选截图</span>
+            </Link>
+          ) : !authReady ? (
+            <div className="upload-hit is-busy">
+              <span className="upload-button-face">正在准备…</span>
+            </div>
+          ) : (
+            <ScreenshotPicker
+              pickerKey={pickerKey}
+              busy={isRecognizing}
+              label={isRecognizing ? "正在识别…" : "选择截图"}
+              onSelect={(event) => void handleImageSelection(event)}
+            />
+          )}
+          {previewUrl && canPickScreenshot && (
+            <ScreenshotPicker
+              pickerKey={pickerKey}
+              busy={isRecognizing}
+              label={isRecognizing ? "正在识别…" : "换一张截图"}
+              className="receipt-preview-hit"
+              onSelect={(event) => void handleImageSelection(event)}
+            >
+              {/* Blob 预览不能走 next/image；预览也是同一套 label+file input。 */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="receipt-preview" src={previewUrl} alt="待识别截图预览" />
+            </ScreenshotPicker>
+          )}
+          {previewUrl && !canPickScreenshot && (
+            <div className="upload-hit receipt-preview-hit is-busy">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="receipt-preview" src={previewUrl} alt="待识别截图预览" />
               <span>{isRecognizing ? "正在识别…" : "换一张截图"}</span>
-              {!pickerBusy && (
-                <OverlayFileInput
-                  key={`preview-${pickerKey}`}
-                  onSelect={(event) => void handleImageSelection(event)}
-                />
-              )}
             </div>
           )}
         </section>

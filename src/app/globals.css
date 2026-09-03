@@ -513,6 +513,7 @@ h2 {
   width: 100%;
   min-height: 122px;
   margin-top: 24px;
+  overflow: hidden;
   color: var(--forest);
   border: 1.5px dashed rgb(24 63 51 / 32%);
   border-radius: 18px;
@@ -520,7 +521,12 @@ h2 {
   cursor: pointer;
   font-weight: 750;
   place-items: center;
+  -webkit-tap-highlight-color: rgb(40 120 87 / 18%);
   transition: 160ms ease;
+}
+
+a.upload-hit {
+  text-decoration: none;
 }
 
 .upload-hit:hover,
@@ -535,22 +541,30 @@ h2 {
 }
 
 .upload-button-face {
+  position: relative;
+  z-index: 1;
   pointer-events: none;
 }
 
-/* CHANGED: 透明 input 必须铺满热区。Android Chrome 对 1px/程序触发的 click() 第二次常会吞掉；disabled 后再启用也会废掉。 */
+/*
+ * CHANGED: Android 上真正可点的是原生「选择文件」按钮，面积跟 font-size 走。
+ * font-size:0 / opacity:0 / inset 会导致点了变色但相册不出现。
+ */
 .upload-file-overlay {
   position: absolute;
-  inset: 0;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
   border: 0;
-  opacity: 0;
+  opacity: 0.01;
   cursor: pointer;
-  font-size: 0;
+  font-size: 72px;
 }
 
 .receipt-preview-hit {
@@ -561,11 +575,6 @@ h2 {
   gap: 8px;
   font-weight: 650;
   text-align: center;
-}
-
-.receipt-preview-hit span {
-  pointer-events: none;
-  font-size: 0.85rem;
 }
 
 .receipt-preview {

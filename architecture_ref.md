@@ -7,7 +7,7 @@
 ## 数据流
 
 1. 手动记账：表单校验 → 金额转为整数分 → 仅写入支出 → IndexedDB；已登录则后台推送到云端。
-2. 截图记账：浏览器对原图计算哈希 → 压缩到 3.5 MB 以内 → `/api/receipts/parse`（线上已启用登录时需会话）→ Qwen-VL 提取全部支出 → Schema 校验 → 多条表单预填 → 用户逐条核对或移除 → 一次写入 IndexedDB。选图热区必须是铺满的透明 `input[type=file]`，禁止 `disabled` 和程序触发的 `click()`，否则 Android Chrome 第二次无法打开相册。
+2. 截图记账：浏览器对原图计算哈希 → 压缩到 3.5 MB 以内 → `/api/receipts/parse`（线上已启用登录时需会话）→ Qwen-VL 提取全部支出 → Schema 校验 → 多条表单预填 → 用户逐条核对或移除 → 一次写入 IndexedDB。选图必须用 `<label>` 包住铺满热区的 file input（Android 上保持极低透明度、足够大的 font-size）；禁止 `disabled`、`opacity:0`、`font-size:0` 和程序 `click()`。
 3. 消费分析：IndexedDB 支出流水 → 月份边界过滤 → 总额、分类占比和环比变化。首页「最近支出」按 `createdAt` 倒序，刚确认的截图账单会立刻出现在列表顶部；本月总额仍按交易发生日统计。
 4. 账号同步：注册/登录签发 HttpOnly Cookie → `POST /api/sync` 以 `syncId` 做最后写入获胜合并 → 其他设备拉取同一本账。
 
