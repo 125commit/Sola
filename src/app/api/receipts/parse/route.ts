@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getCloudAuthConfig, getSessionUser } from "@/lib/auth";
 import { validateReceiptImage } from "@/lib/image";
 import {
   parseReceiptBatchModelOutput,
@@ -26,6 +27,18 @@ type QwenResponse = {
  * 【副作用】图片只存在于本次请求内，不写磁盘、不进入日志或本地账本。
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  const cloudAuth = getCloudAuthConfig();
+  if (cloudAuth.ready) {
+    const user = await getSessionUser();
+    // CHANGED: 线上配好登录后必须带会话 → 避免公开站点被刷百炼额度。未配数据库的本机仍可识别。
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, code: "LOGIN_REQUIRED", error: "请先登录后再使用截图识别" },
+        { status: 401 },
+      );
+    }
+  }
+
   const apiKey = process.env.DASHSCOPE_API_KEY;
 
   // NOTE: 未配置密钥时明确降级，手动记账页面仍可继续使用。

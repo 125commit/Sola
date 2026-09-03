@@ -1,0 +1,24 @@
+---
+description: Sola 产品边界、部署与数据铁律，改任何功能前先对照
+alwaysApply: true
+---
+
+# Sola 智能记账
+
+本地文件夹叫 `tally`，产品名、Vercel 项目、GitHub 仓库都是 **Sola**（`125commit/Sola.git`）。不要把表名、Cookie、IndexedDB 名从 `tally_*` / `tally-ledger` / `tally_session` 改掉——线上已有数据。
+
+## 产品边界
+
+- 只记支出，不记收入、结余、收款、退款。
+- 本地优先：界面只读 IndexedDB；Postgres 是登录后的同步副本。没有 `DATABASE_URL` / `AUTH_SECRET` 时必须仍能本机记账。
+- 金额真值是整数分，禁止用浮点当账本。
+- 原始截图不落库、不写日志；只存 SHA-256。没有识别密钥时必须能手动记账。
+- 删除用 `deletedAt` 墓碑，禁止物理删本地行（否则其他设备删不掉）。
+- 跨设备用 `syncId`；同一笔以 `updatedAt` 更大的为准。换账号登录前必须清空本机账本。
+
+## 部署
+
+- 托管在 Vercel；库用 Neon（连接串必须叫 `DATABASE_URL`，不要 `STORAGE_URL`）。
+- 登录还要 `AUTH_SECRET`（≥16）。线上截图识别还要 `DASHSCOPE_API_KEY`。
+- 已配置云登录时，截图识别必须带会话；客户端会把原图压到 3.5 MB 以内再上传（Vercel 请求体上限 4.5 MB）。
+- 改 Next API / 数据层前先读 `architecture_ref.md` 和 `node_modules/next/dist/docs/`。

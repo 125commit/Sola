@@ -1,5 +1,5 @@
 {
-  "currentTask": "sola-brand-account",
+  "currentTask": "screenshot-refresh-reupload",
   "tasks": [
     {
       "id": "tally-mvp",
@@ -177,6 +177,56 @@
         "src/components/app-nav.tsx",
         "src/components/account-panel.tsx",
         "src/components/pwa-installer.tsx"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "receipt-upload-guard",
+      "title": "截图压缩与识别登录门槛",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "README.md",
+        "src/lib/image.ts",
+        "src/lib/auth.ts",
+        "src/app/api/receipts/parse/route.ts",
+        "src/components/transaction-form.tsx",
+        "src/app/globals.css",
+        "tests/image.test.ts",
+        ".cursor/rules/sola-project.mdc",
+        ".cursor/rules/sola-data-sync.mdc"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "screenshot-refresh-reupload",
+      "title": "截图入账后立即可见，手机可反复选图",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "src/lib/db.ts",
+        "src/lib/ledger-view.ts",
+        "src/lib/image.ts",
+        "src/components/transaction-form.tsx",
+        "src/components/dashboard.tsx",
+        "src/app/globals.css",
+        "public/sw.js",
+        "tests/ledger-view.test.ts",
+        "tests/image.test.ts"
       ],
       "forbidden": [
         "../",

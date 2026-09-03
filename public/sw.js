@@ -1,4 +1,4 @@
-const CACHE_NAME = "tally-shell-v2";
+const CACHE_NAME = "tally-shell-v3";
 const APP_SHELL = [
   "/",
   "/add",

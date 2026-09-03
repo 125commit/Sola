@@ -89,7 +89,7 @@ export async function clearSession(): Promise<void> {
 
 /**
  * 【做什么】从 Cookie 解析当前登录用户；令牌无效时视为未登录。
- * 【何时调用】/api/auth/me 和需要登录的同步接口。
+ * 【何时调用】/api/auth/me、账本同步，以及线上已启用云登录时的截图识别。
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const secret = getSessionSecret();

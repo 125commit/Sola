@@ -4,6 +4,7 @@ import Dexie, { type EntityTable } from "dexie";
 
 import { createSyncId } from "@/lib/sync-id";
 import { transactionToSyncRecord } from "@/lib/sync-record";
+import { toVisibleLedger } from "@/lib/ledger-view";
 import type { SyncRecord, Transaction, TransactionDraft } from "@/lib/types";
 
 type LedgerListener = () => void;
@@ -75,12 +76,11 @@ function isActive(transaction: Transaction): boolean {
  * 【做什么】读取尚未删除的支出，供总览和分析的实时订阅使用。
  * 【何时调用】Dashboard / AnalysisDashboard 的 useLiveQuery 工厂里。
  */
-export function queryActiveTransactions(): Promise<Transaction[]> {
-  return db.transactions
-    .orderBy("occurredAt")
-    .reverse()
-    .filter((item) => isActive(item))
-    .toArray();
+export async function queryActiveTransactions(): Promise<Transaction[]> {
+  // CHANGED: 原先 orderBy(occurredAt)+Collection.filter → 整表 toArray 后再筛。
+  // WebKit 上 Collection.filter 常常不触发 useLiveQuery；按交易日排序也会把新截图账单藏起来。
+  const rows = await db.transactions.toArray();
+  return toVisibleLedger(rows);
 }
 
 /**
@@ -95,7 +95,7 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
     throw new Error("金额必须大于 0 且精确到分");
   }
 
-  return db.transaction("rw", db.transactions, async () => {
+  const id = await db.transaction("rw", db.transactions, async () => {
     // WARN: 同一截图重复提交时拒绝写入，避免月度统计被悄悄放大。
     if (draft.imageHash) {
       const existing = await db.transactions
@@ -109,7 +109,7 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
     }
 
     const now = new Date().toISOString();
-    const id = await db.transactions.add({
+    const nextId = await db.transactions.add({
       ...draft,
       syncId: createSyncId(),
       createdAt: now,
@@ -117,12 +117,14 @@ export async function addTransaction(draft: TransactionDraft): Promise<number> {
     });
 
     // WARN: 自动主键理论上总会返回；显式守卫可避免底层存储异常被当成保存成功。
-    if (id === undefined) {
+    if (nextId === undefined) {
       throw new Error("本地账本未能生成记录编号");
     }
-    notifyLedgerChanged();
-    return id;
+    return nextId;
   });
+  // CHANGED: 提交完成后再通知同步。写在事务内时，Safari 上 liveQuery 可能读到半提交状态甚至把事务打回。
+  notifyLedgerChanged();
+  return id;
 }
 
 /**
@@ -148,7 +150,7 @@ export async function addScreenshotTransactions(
     throw new Error("批量截图只能写入金额有效的支出");
   }
 
-  return db.transaction("rw", db.transactions, async () => {
+  const ids = await db.transaction("rw", db.transactions, async () => {
     const exactMatch = await db.transactions
       .where("imageHash")
       .equals(imageHash)
@@ -166,7 +168,7 @@ export async function addScreenshotTransactions(
     }
 
     const now = new Date().toISOString();
-    const ids: number[] = [];
+    const nextIds: number[] = [];
     for (const [index, draft] of drafts.entries()) {
       const id = await db.transactions.add({
         ...draft,
@@ -178,11 +180,12 @@ export async function addScreenshotTransactions(
       if (id === undefined) {
         throw new Error("本地账本未能生成记录编号");
       }
-      ids.push(id);
+      nextIds.push(id);
     }
-    notifyLedgerChanged();
-    return ids;
+    return nextIds;
   });
+  notifyLedgerChanged();
+  return ids;
 }
 
 /**

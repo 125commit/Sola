@@ -1,11 +1,12 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 
 import { yuanToCents } from "@/lib/analytics";
 import { CATEGORIES } from "@/lib/categories";
+import { useAuth } from "@/components/auth-provider";
 import {
   addScreenshotTransactions,
   addTransaction,
@@ -13,7 +14,13 @@ import {
   hasImageHash,
   updateTransaction,
 } from "@/lib/db";
-import { hashImageFile, validateReceiptImage } from "@/lib/image";
+import { JUST_SAVED_STORAGE_KEY } from "@/lib/ledger-view";
+import {
+  compressReceiptImageForUpload,
+  hashImageFile,
+  MAX_SOURCE_IMAGE_BYTES,
+  validateReceiptImage,
+} from "@/lib/image";
 import {
   normalizeReceiptDateTime,
   ParsedReceiptBatchSchema,
@@ -37,6 +44,41 @@ interface ExpenseFormDraft {
 }
 
 /**
+ * 【做什么】把刚确认的笔数留给首页，返回总览时立刻提示。
+ * 【何时调用】IndexedDB 写入成功、即将跳转首页前。
+ */
+function rememberJustSaved(count: number) {
+  try {
+    sessionStorage.setItem(JUST_SAVED_STORAGE_KEY, JSON.stringify({ count, at: Date.now() }));
+  } catch {
+    // 隐私模式写不了提示标记；IndexedDB 入账不受影响。
+  }
+}
+
+/**
+ * 【做什么】铺满按钮的透明选图控件，让手指直接点到系统 file input。
+ * 【何时调用】「选择截图」和预览「换一张」的热区里。
+ * 【原因】Android Chrome 对 1px/不可见 input 调用 click()，或把 input 设为 disabled 再启用后，第二次经常打不开相册；看起来像点了，其实选图器没起来。
+ */
+function OverlayFileInput({
+  onSelect,
+}: {
+  onSelect: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <input
+      className="upload-file-overlay"
+      type="file"
+      accept="image/*"
+      onClick={(event) => {
+        event.currentTarget.value = "";
+      }}
+      onChange={onSelect}
+    />
+  );
+}
+
+/**
  * 【做什么】把 Date 转成浏览器 datetime-local 控件需要的本地时间。
  * 【何时调用】创建新表单的默认发生时间时，避免 UTC 转换造成日期偏移。
  */
@@ -53,6 +95,9 @@ function toLocalDateTimeValue(date = new Date()): string {
  */
 export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
   const router = useRouter();
+  const { ready: authReady, cloudReady, user } = useAuth();
+  // CHANGED: 线上已开放登录时，未登录不能点识别，避免把百炼额度暴露给匿名请求。
+  const needsLoginForRecognition = authReady && cloudReady && !user;
   const [amount, setAmount] = useState(
     initial ? (initial.amountCents / 100).toFixed(2) : "",
   );
@@ -69,6 +114,8 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [pickerKey, setPickerKey] = useState(0);
+  const pickerBusy = isRecognizing || !authReady || needsLoginForRecognition;
 
   // WARN: 预览只使用临时 Blob URL；切换图片或离开页面时立即释放内存。
   useEffect(
@@ -81,21 +128,27 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
   );
 
   /**
-   * 【做什么】校验图片、检查重复并请求视觉识别后预填多笔支出。
-   * 【何时调用】新增支出时选择一张支付截图后。
+   * 【做什么】把选中的截图交给识别流程。
+   * 【何时调用】用户点在覆盖按钮的透明 file input 上并选出图片后。
    */
   async function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) {
       return;
     }
 
     setError(null);
     setStatus(null);
-    const validationError = validateReceiptImage(file);
+
+    if (needsLoginForRecognition) {
+      setError("请先登录后再使用截图识别，你仍可手动记账");
+      return;
+    }
+
+    const validationError = validateReceiptImage(file, MAX_SOURCE_IMAGE_BYTES);
     if (validationError) {
       setError(validationError);
-      event.target.value = "";
       return;
     }
 
@@ -104,6 +157,9 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
     }
     setPreviewUrl(URL.createObjectURL(file));
     setIsRecognizing(true);
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 35_000);
 
     try {
       const hash = await hashImageFile(file);
@@ -114,11 +170,14 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
         return;
       }
 
+      // CHANGED: 先压缩再上传 → 否则超过 4.5 MB 的手机原图会在 Vercel 直接 413。
+      const uploadFile = await compressReceiptImageForUpload(file);
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", uploadFile);
       const response = await fetch("/api/receipts/parse", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -181,10 +240,19 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
       setIgnoredCount(0);
       setSource("manual");
       setImageHash(undefined);
-      setError(caught instanceof Error ? caught.message : "识别失败，请手动填写");
+      const timedOut = caught instanceof Error && caught.name === "AbortError";
+      setError(
+        timedOut
+          ? "识别超时，请换一张截图或手动填写"
+          : caught instanceof Error
+            ? caught.message
+            : "识别失败，请手动填写",
+      );
     } finally {
+      window.clearTimeout(timeout);
       setIsRecognizing(false);
-      event.target.value = "";
+      // CHANGED: 识别结束后换掉旧 input。Android Chrome 复用同一个 file input 时，第二次 change 经常不来。
+      setPickerKey((key) => key + 1);
     }
   }
 
@@ -253,9 +321,9 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
       setIsSaving(true);
       try {
         await addScreenshotTransactions(drafts, imageHash);
+        rememberJustSaved(drafts.length);
         onSaved?.();
         router.push("/");
-        router.refresh();
       } catch (caught) {
         setError(
           caught instanceof DuplicateImageError
@@ -297,10 +365,12 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
         await updateTransaction(initial.id, draft);
       } else {
         await addTransaction(draft);
+        rememberJustSaved(1);
       }
       onSaved?.();
-      router.push("/");
-      router.refresh();
+      if (!initial) {
+        router.push("/");
+      }
     } catch (caught) {
       setError(
         caught instanceof DuplicateImageError
@@ -323,24 +393,36 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
             <h2 id="upload-title">上传截图，提取全部支出</h2>
             <p className="muted">仅记录支出；识别结果可逐条修改或移除，原图不会保存。</p>
           </div>
-          <label className={`upload-button ${isRecognizing ? "is-disabled" : ""}`}>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleImageSelection}
-              disabled={isRecognizing}
-            />
-            {isRecognizing ? "正在识别…" : "选择截图"}
-          </label>
+          {needsLoginForRecognition && (
+            <p className="notice sync-notice">
+              <span>登录后才能使用截图识别，避免识别额度被滥用。你仍可在下方手动记账。</span>
+              <Link href="/account">去登录</Link>
+            </p>
+          )}
+          <div className={`upload-hit ${pickerBusy ? "is-busy" : ""}`}>
+            <span className="upload-button-face">
+              {isRecognizing ? "正在识别…" : needsLoginForRecognition ? "请先登录" : "选择截图"}
+            </span>
+            {!pickerBusy && (
+              <OverlayFileInput
+                key={`main-${pickerKey}`}
+                onSelect={(event) => void handleImageSelection(event)}
+              />
+            )}
+          </div>
           {previewUrl && (
-            <Image
-              className="receipt-preview"
-              src={previewUrl}
-              alt="待识别截图预览"
-              width={720}
-              height={1280}
-              unoptimized
-            />
+            <div className={`upload-hit receipt-preview-hit ${pickerBusy ? "is-busy" : ""}`}>
+              {/* Blob 预览不能走 next/image；预览热区同样盖透明 input，避免点图没反应。 */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="receipt-preview" src={previewUrl} alt="待识别截图预览" />
+              <span>{isRecognizing ? "正在识别…" : "换一张截图"}</span>
+              {!pickerBusy && (
+                <OverlayFileInput
+                  key={`preview-${pickerKey}`}
+                  onSelect={(event) => void handleImageSelection(event)}
+                />
+              )}
+            </div>
           )}
         </section>
       )}

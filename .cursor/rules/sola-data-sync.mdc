@@ -1,0 +1,15 @@
+---
+description: IndexedDB 与 Neon 同步、鉴权 Cookie 的实现约定
+globs: src/lib/{db,cloud-db,auth,auth-schema,sync-*}.ts,src/app/api/**/*.ts,src/components/auth-provider.tsx
+alwaysApply: false
+---
+
+# 数据与同步
+
+- `src/lib/db.ts` 是账本唯一写入入口。云同步经 `subscribeLedgerChanges`，不要在 db 里直接 fetch。
+- 云表：`tally_users`、`tally_transactions`。schema 在 `getCloudSql()` 首次访问时 `CREATE IF NOT EXISTS`，没有独立迁移命令。
+- `POST /api/sync`：校验 → 逐条 upsert（`updated_at` 较旧则不覆盖）→ 返回该用户全量含墓碑。客户端 `applyRemoteRecords` 按 `syncId` 覆盖本地。
+- `mergeLedger` 只用于单测；生产合并发生在 SQL `ON CONFLICT ... WHERE EXCLUDED.updated_at >=`。
+- 批量截图的 `imageHash` 带 `:index` 后缀。云端有 `(user_id, image_hash)` 部分唯一索引；冲突码 `23505` 会跳过该行，不要让整批同步失败。
+- 会话：HttpOnly Cookie `tally_session`，JWT HS256，30 天。生产 `secure: true`。
+- 截图识别 `/api/receipts/parse`：已配置 `DATABASE_URL`+`AUTH_SECRET` 时必须登录；未配置时本机仍可识别。上传体积 ≤ 3.5 MB（Vercel 请求体 4.5 MB）。客户端先对原图哈希，再压缩后上传。

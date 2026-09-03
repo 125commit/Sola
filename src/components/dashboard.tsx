@@ -7,6 +7,7 @@ import { useState } from "react";
 import { formatCents, getMonthKey, summarizeMonth } from "@/lib/analytics";
 import { getCategoryLabel } from "@/lib/categories";
 import { deleteTransaction, queryActiveTransactions } from "@/lib/db";
+import { JUST_SAVED_STORAGE_KEY } from "@/lib/ledger-view";
 import type { Transaction } from "@/lib/types";
 import { useAuth } from "@/components/auth-provider";
 import { TransactionForm } from "@/components/transaction-form";
@@ -20,6 +21,29 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
 });
 
 /**
+ * 【做什么】读取刚刚确认入账的笔数，给首页一条即时提示。
+ * 【何时调用】Dashboard 首次渲染时作为 state 初始值。
+ */
+function readJustSavedCount(): number | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = sessionStorage.getItem(JUST_SAVED_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as { count?: number; at?: number };
+    if (typeof parsed.count === "number" && parsed.count > 0 && Date.now() - (parsed.at ?? 0) < 60_000) {
+      return parsed.count;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
  * 【做什么】展示当前月支出总览、月度进度和最近支出管理。
  * 【何时调用】用户进入应用首页时。
  */
@@ -27,12 +51,13 @@ export function Dashboard() {
   const { ready, user } = useAuth();
   const transactions = useLiveQuery(() => queryActiveTransactions(), []);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [justSavedCount] = useState<number | null>(readJustSavedCount);
   const now = new Date();
   const monthKey = getMonthKey(now);
   // NOTE: 汇总是轻量纯计算，直接执行可避免可变 IndexedDB 数组破坏手工 memo 语义。
   const summary = summarizeMonth(transactions ?? [], monthKey);
-  // NOTE: 旧版收入记录若仍存在本地，首页列表也不展示。
-  const expenseList = (transactions ?? []).filter((item) => item.type === "expense");
+  // CHANGED: 查询层已按入账时间倒序并去掉墓碑；这里不再按交易日过滤，避免刚记入的上月截图账单「消失」。
+  const expenseList = transactions ?? [];
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const monthProgress = Math.min(100, (now.getDate() / daysInMonth) * 100);
   const dailyAverage =
@@ -74,6 +99,12 @@ export function Dashboard() {
           + 记一笔
         </Link>
       </header>
+
+      {justSavedCount !== null && (
+        <p className="notice success-notice">
+          已记入 {justSavedCount} 笔支出，按入账时间排在最上面。若截图是上月账单，本月总额不会变。
+        </p>
+      )}
 
       {/* CHANGED: 未登录时明确提示数据还在本机，避免用户以为换手机会自动带上账本。 */}
       {ready && !user && (
