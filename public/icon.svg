@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tally þ">
+  <rect width="512" height="512" rx="112" fill="#12261f"/>
+  <path d="M142 141h228v230H142z" fill="#f6f2e8"/>
+  <path d="M184 194h144M184 250h144M184 306h88" stroke="#12261f" stroke-width="25" stroke-linecap="round"/>
+  <circle cx="336" cy="330" r="59" fill="#f4b942"/>
+  <path d="M336 296v68M302 330h68" stroke="#12261f" stroke-width="18" stroke-linecap="round"/>
+</svg>

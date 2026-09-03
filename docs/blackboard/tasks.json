@@ -1,0 +1,105 @@
+{
+  "currentTask": "expense-only",
+  "tasks": [
+    {
+      "id": "tally-mvp",
+      "title": "智能记账初版",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/blackboard/tasks.json",
+        ".env.example",
+        ".gitignore",
+        "README.md",
+        "package.json",
+        "package-lock.json",
+        "next-env.d.ts",
+        "tsconfig.json",
+        "next.config.ts",
+        "postcss.config.mjs",
+        "eslint.config.mjs",
+        "vitest.config.ts",
+        "public/icon.svg",
+        "public/manifest.webmanifest",
+        "public/sw.js",
+        "src/app/globals.css",
+        "src/app/layout.tsx",
+        "src/app/page.tsx",
+        "src/app/add/page.tsx",
+        "src/app/analysis/page.tsx",
+        "src/app/api/receipts/parse/route.ts",
+        "src/components/app-nav.tsx",
+        "src/components/pwa-registrar.tsx",
+        "src/components/transaction-form.tsx",
+        "src/components/dashboard.tsx",
+        "src/components/analysis-dashboard.tsx",
+        "src/components/expense-charts.tsx",
+        "src/lib/types.ts",
+        "src/lib/categories.ts",
+        "src/lib/db.ts",
+        "src/lib/analytics.ts",
+        "src/lib/receipt-schema.ts",
+        "src/lib/image.ts",
+        "tests/analytics.test.ts",
+        "tests/receipt-schema.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "multi-expense-screenshot",
+      "title": "单张截图批量识别支出",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "src/app/globals.css",
+        "src/app/api/receipts/parse/route.ts",
+        "src/components/transaction-form.tsx",
+        "src/lib/db.ts",
+        "src/lib/receipt-schema.ts",
+        "tests/receipt-schema.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "expense-only",
+      "title": "仅保留支出记账与分析",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "README.md",
+        "src/app/globals.css",
+        "src/components/transaction-form.tsx",
+        "src/components/dashboard.tsx",
+        "src/components/analysis-dashboard.tsx",
+        "src/lib/types.ts",
+        "src/lib/categories.ts",
+        "src/lib/analytics.ts",
+        "src/lib/db.ts",
+        "tests/analytics.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    }
+  ]
+}
