@@ -436,7 +436,7 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
           )}
           {isStandalonePwa && !needsLoginForRecognition && (
             <p className="notice sync-notice">
-              若点「选择截图」没有弹出相册，这是部分手机「主屏幕应用」的限制。请用小米浏览器打开同一网址再选图，或改用下方「拍照识别」。
+              若点「选择截图」没有弹出相册，这是部分手机「主屏幕应用」的限制。请用浏览器打开同一网址再选图。
             </p>
           )}
           {needsLoginForRecognition ? (
@@ -448,28 +448,12 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
               <span className="upload-button-face">正在准备…</span>
             </div>
           ) : (
-            <div className="upload-actions">
-              <ScreenshotPicker
-                pickerKey={pickerKey}
-                busy={isRecognizing}
-                label={isRecognizing ? "正在识别…" : "选择截图"}
-                onSelect={(event) => void handleImageSelection(event)}
-              />
-              {/* CHANGED: 主屏幕 WebView 常拦相册 Intent，但相机 capture 仍可用，作为退路。 */}
-              {!isRecognizing && (
-                <label className="upload-camera-hit">
-                  <span>拍照识别</span>
-                  <input
-                    key={`camera-${pickerKey}`}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    aria-label="拍照识别"
-                    onChange={(event) => void handleImageSelection(event)}
-                  />
-                </label>
-              )}
-            </div>
+            <ScreenshotPicker
+              pickerKey={pickerKey}
+              busy={isRecognizing}
+              label={isRecognizing ? "正在识别…" : "选择截图"}
+              onSelect={(event) => void handleImageSelection(event)}
+            />
           )}
           {previewUrl && canPickScreenshot && (
             <ScreenshotPicker

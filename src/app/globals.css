@@ -540,16 +540,6 @@ a.upload-hit {
   opacity: 0.65;
 }
 
-.upload-actions {
-  display: grid;
-  margin-top: 24px;
-  gap: 10px;
-}
-
-.upload-actions .upload-hit {
-  margin-top: 0;
-}
-
 .upload-button-face {
   position: relative;
   z-index: 1;
@@ -590,45 +580,6 @@ a.upload-hit {
   background: transparent;
   color: transparent;
   font-size: 128px;
-}
-
-.upload-camera-hit {
-  position: relative;
-  display: grid;
-  min-height: 48px;
-  overflow: hidden;
-  color: var(--forest);
-  border: 1px solid rgb(24 63 51 / 18%);
-  border-radius: 14px;
-  background: rgb(255 253 248 / 80%);
-  cursor: pointer;
-  font-weight: 650;
-  place-items: center;
-  -webkit-tap-highlight-color: rgb(40 120 87 / 18%);
-}
-
-.upload-camera-hit span {
-  position: relative;
-  z-index: 1;
-  pointer-events: none;
-  font-size: 0.92rem;
-}
-
-.upload-camera-hit input {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0.02;
-  cursor: pointer;
-  font-size: 64px;
 }
 
 .receipt-preview-hit {
