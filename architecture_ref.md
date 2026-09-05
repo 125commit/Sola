@@ -28,7 +28,7 @@
 - `src/app/page.tsx`：本月概览与流水管理。
 - `src/app/analysis/page.tsx`：分类占比、月度趋势与行为变化。
 - `src/app/account/page.tsx`：登录注册与同步状态。
-- `src/app/manifest.ts` 与 `public/sw.js`：可安装 PWA 外壳。
+- `src/app/manifest.ts` 与 `public/sw.js`：可安装 PWA 外壳；账号页与底部横幅提供「安装到主屏幕」。
 
 ## 约束
 

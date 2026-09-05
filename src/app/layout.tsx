@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
 import { AppNav } from "@/components/app-nav";
 import { AuthProvider } from "@/components/auth-provider";
-import { PwaInstaller } from "@/components/pwa-installer";
+import { PwaInstallBanner, PwaInstallProvider } from "@/components/pwa-install";
 import { PwaRegistrar } from "@/components/pwa-registrar";
 
 export const metadata: Metadata = {
@@ -37,10 +37,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN">
       <body>
         <AuthProvider>
-          <PwaRegistrar />
-          <PwaInstaller />
-          <AppNav />
-          {children}
+          <PwaInstallProvider>
+            <PwaRegistrar />
+            <PwaInstallBanner />
+            <AppNav />
+            {children}
+          </PwaInstallProvider>
         </AuthProvider>
       </body>
     </html>

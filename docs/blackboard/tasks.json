@@ -1,5 +1,5 @@
 {
-  "currentTask": "pwa-file-picker",
+  "currentTask": "pwa-install-entry",
   "tasks": [
     {
       "id": "tally-mvp",
@@ -246,6 +246,27 @@
         "src/components/transaction-form.tsx",
         "src/app/globals.css",
         "public/sw.js"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "pwa-install-entry",
+      "title": "账号页与横幅安装到主屏幕",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "src/components/pwa-install.tsx",
+        "src/components/pwa-installer.tsx",
+        "src/components/account-panel.tsx",
+        "src/app/layout.tsx",
+        "src/app/manifest.ts"
       ],
       "forbidden": [
         "../",

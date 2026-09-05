@@ -3,9 +3,10 @@
 import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/components/auth-provider";
+import { PwaInstallCard } from "@/components/pwa-install";
 
 /**
- * 【做什么】提供注册、登录、退出和手动同步。
+ * 【做什么】提供注册、登录、退出、手动同步，以及安装到主屏幕。
  * 【何时调用】用户点击品牌图标打开账号页时。
  */
 export function AccountPanel() {
@@ -67,6 +68,8 @@ export function AccountPanel() {
           云同步尚未配置。请在 Vercel 环境变量中填写 DATABASE_URL（Neon/Vercel Postgres）和 AUTH_SECRET。
         </p>
       )}
+
+      <PwaInstallCard />
 
       {user ? (
         <section className="content-card account-card">
