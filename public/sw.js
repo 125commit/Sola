@@ -1,4 +1,4 @@
-const CACHE_NAME = "tally-shell-v4";
+const CACHE_NAME = "tally-shell-v5";
 const APP_SHELL = [
   "/",
   "/add",
@@ -40,6 +40,14 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isHtmlNavigation(request) {
+  if (request.mode === "navigate") {
+    return true;
+  }
+  const accept = request.headers.get("accept") || "";
+  return accept.includes("text/html");
+}
+
 /**
  * 【做什么】页面资源优先联网，断网时回退缓存；识别和账号 API 永不缓存。
  * 【何时调用】PWA 发起同源 GET 请求时。
@@ -49,6 +57,16 @@ self.addEventListener("fetch", (event) => {
 
   // WARN: API 返回可能包含账单或会话信息，任何情况下都不写入浏览器缓存。
   if (event.request.method !== "GET" || requestUrl.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  // CHANGED: HTML 导航只联网、成功也不写入 Cache。主屏幕 PWA 否则会长期留着旧选图逻辑。
+  if (isHtmlNavigation(event.request)) {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match(event.request).then((cached) => cached ?? caches.match("/")),
+      ),
+    );
     return;
   }
 

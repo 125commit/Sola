@@ -540,6 +540,16 @@ a.upload-hit {
   opacity: 0.65;
 }
 
+.upload-actions {
+  display: grid;
+  margin-top: 24px;
+  gap: 10px;
+}
+
+.upload-actions .upload-hit {
+  margin-top: 0;
+}
+
 .upload-button-face {
   position: relative;
   z-index: 1;
@@ -547,10 +557,64 @@ a.upload-hit {
 }
 
 /*
- * CHANGED: Android 上真正可点的是原生「选择文件」按钮，面积跟 font-size 走。
- * font-size:0 / opacity:0 / inset 会导致点了变色但相册不出现。
+ * CHANGED: 主屏幕 WebView（尤其小米）要求手指直接点在 input 上。
+ * 不用 label 转发；opacity 略大于 0；放大原生按钮；并样式化 file-selector-button 铺满热区。
  */
 .upload-file-overlay {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0.02;
+  cursor: pointer;
+  font-size: 128px;
+  line-height: 128px;
+}
+
+.upload-file-overlay::-webkit-file-upload-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  color: transparent;
+  font-size: 128px;
+}
+
+.upload-camera-hit {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  overflow: hidden;
+  color: var(--forest);
+  border: 1px solid rgb(24 63 51 / 18%);
+  border-radius: 14px;
+  background: rgb(255 253 248 / 80%);
+  cursor: pointer;
+  font-weight: 650;
+  place-items: center;
+  -webkit-tap-highlight-color: rgb(40 120 87 / 18%);
+}
+
+.upload-camera-hit span {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  font-size: 0.92rem;
+}
+
+.upload-camera-hit input {
   position: absolute;
   z-index: 2;
   top: 0;
@@ -562,13 +626,14 @@ a.upload-hit {
   margin: 0;
   padding: 0;
   border: 0;
-  opacity: 0.01;
+  opacity: 0.02;
   cursor: pointer;
-  font-size: 72px;
+  font-size: 64px;
 }
 
 .receipt-preview-hit {
   min-height: 0;
+  margin-top: 18px;
   padding: 0;
   border-style: solid;
   background: transparent;

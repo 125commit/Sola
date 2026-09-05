@@ -1,5 +1,5 @@
 {
-  "currentTask": "screenshot-refresh-reupload",
+  "currentTask": "pwa-file-picker",
   "tasks": [
     {
       "id": "tally-mvp",
@@ -227,6 +227,25 @@
         "public/sw.js",
         "tests/ledger-view.test.ts",
         "tests/image.test.ts"
+      ],
+      "forbidden": [
+        "../",
+        ".env.local",
+        "node_modules/"
+      ]
+    },
+    {
+      "id": "pwa-file-picker",
+      "title": "主屏幕 PWA 可打开相册选图",
+      "phase": "implementation",
+      "status": "completed",
+      "architecture_ref": "architecture_ref.md",
+      "files": [
+        "architecture_ref.md",
+        "docs/blackboard/tasks.json",
+        "src/components/transaction-form.tsx",
+        "src/app/globals.css",
+        "public/sw.js"
       ],
       "forbidden": [
         "../",

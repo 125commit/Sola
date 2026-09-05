@@ -56,10 +56,10 @@ function rememberJustSaved(count: number) {
 }
 
 /**
- * 【做什么】用 label 包住铺满热区的 file input，让手指直接点到系统选图控件。
+ * 【做什么】整块热区就是 file input，手指直接点在系统选图控件上。
  * 【何时调用】「选择截图」和「换一张截图」。
- * 【原因】Android Chrome 上：opacity:0 可能不接收点击；font-size:0 时原生“选择文件”按钮面积为 0；
- * disabled / 程序 click() 会让第二次彻底失效。所以用看得见尺寸的透明控件，且不用 disabled。
+ * 【原因】小米等浏览器「加到主屏幕」后用精简 WebView：label 转发点击、opacity≈0 的覆盖层
+ * 常能点出变色却打不开相册；浏览器标签页正常。独立窗口必须让 input 自己接点击。
  */
 function ScreenshotPicker({
   pickerKey,
@@ -77,19 +77,23 @@ function ScreenshotPicker({
   onSelect: (event: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className={`upload-hit ${busy ? "is-busy" : ""} ${className ?? ""}`}>
+    <div className={`upload-hit ${busy ? "is-busy" : ""} ${className ?? ""}`}>
       {children}
-      <span className="upload-button-face">{label}</span>
+      <span className="upload-button-face" aria-hidden="true">
+        {label}
+      </span>
       {busy ? null : (
         <input
           key={pickerKey}
           className="upload-file-overlay"
           type="file"
-          accept="image/*"
+          // NOTE: 同时写 MIME 与扩展名；部分国产 WebView 只认其一，image/* 单独会打不开图库。
+          accept="image/*,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          aria-label={label}
           onChange={onSelect}
         />
       )}
-    </label>
+    </div>
   );
 }
 
@@ -102,6 +106,21 @@ function toLocalDateTimeValue(date = new Date()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
     date.getHours(),
   )}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * 【做什么】判断当前是否从主屏幕独立窗口打开。
+ * 【何时调用】记一笔页首次渲染，决定是否显示选图受限提示。
+ */
+function readStandaloneDisplay(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone))
+  );
 }
 
 /**
@@ -130,6 +149,7 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pickerKey, setPickerKey] = useState(0);
+  const [isStandalonePwa] = useState(readStandaloneDisplay);
   const canPickScreenshot = authReady && !needsLoginForRecognition && !isRecognizing;
 
   // WARN: 预览只使用临时 Blob URL；切换图片或离开页面时立即释放内存。
@@ -414,6 +434,11 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
               <Link href="/account">去登录</Link>
             </p>
           )}
+          {isStandalonePwa && !needsLoginForRecognition && (
+            <p className="notice sync-notice">
+              若点「选择截图」没有弹出相册，这是部分手机「主屏幕应用」的限制。请用小米浏览器打开同一网址再选图，或改用下方「拍照识别」。
+            </p>
+          )}
           {needsLoginForRecognition ? (
             <Link className="upload-hit" href="/account">
               <span className="upload-button-face">请先登录后再选截图</span>
@@ -423,12 +448,28 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
               <span className="upload-button-face">正在准备…</span>
             </div>
           ) : (
-            <ScreenshotPicker
-              pickerKey={pickerKey}
-              busy={isRecognizing}
-              label={isRecognizing ? "正在识别…" : "选择截图"}
-              onSelect={(event) => void handleImageSelection(event)}
-            />
+            <div className="upload-actions">
+              <ScreenshotPicker
+                pickerKey={pickerKey}
+                busy={isRecognizing}
+                label={isRecognizing ? "正在识别…" : "选择截图"}
+                onSelect={(event) => void handleImageSelection(event)}
+              />
+              {/* CHANGED: 主屏幕 WebView 常拦相册 Intent，但相机 capture 仍可用，作为退路。 */}
+              {!isRecognizing && (
+                <label className="upload-camera-hit">
+                  <span>拍照识别</span>
+                  <input
+                    key={`camera-${pickerKey}`}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    aria-label="拍照识别"
+                    onChange={(event) => void handleImageSelection(event)}
+                  />
+                </label>
+              )}
+            </div>
           )}
           {previewUrl && canPickScreenshot && (
             <ScreenshotPicker
@@ -438,7 +479,7 @@ export function TransactionForm({ initial, onSaved }: TransactionFormProps) {
               className="receipt-preview-hit"
               onSelect={(event) => void handleImageSelection(event)}
             >
-              {/* Blob 预览不能走 next/image；预览也是同一套 label+file input。 */}
+              {/* Blob 预览不能走 next/image；预览热区同样是直接可点的 file input。 */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="receipt-preview" src={previewUrl} alt="待识别截图预览" />
             </ScreenshotPicker>
